@@ -1,0 +1,2 @@
+const {json,writeCookie,originOk}=require('./_lib');
+module.exports=function handler(req,res){if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});if(!originOk(req))return json(res,403,{error:'Invalid origin'});writeCookie(res,'',0);return json(res,200,{success:true})};
