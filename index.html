@@ -264,6 +264,22 @@ input:focus,textarea:focus{border-color:var(--accent);outline:none}
 .btn.primary{background:var(--grad);border:none;color:#fff}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .toast{color:var(--good);font-weight:600;font-size:15px;align-self:center}
+
+/* Final-step submission and confirmation */
+.summary-finish-note{font-size:15px;color:var(--muted);margin:24px 0 0;line-height:1.7}
+.summary-finish-note strong{color:var(--fg)}
+.finish-error{border:1px solid #C76A8D;color:#FFD3E0;background:rgba(165,36,82,.14);padding:12px 16px;margin:16px 0 0;border-radius:10px;font-size:14px;line-height:1.5}
+.completion{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:44px 22px;background:radial-gradient(ellipse 65% 65% at 50% 32%,rgba(132,62,215,.25),transparent 78%),#100E27;color:var(--fg);text-align:center;font-family:var(--font)}
+.completion[hidden]{display:none!important}
+.completion-inner{width:100%;max-width:690px;margin:auto}
+.completion-symbol{width:92px;height:92px;display:grid;place-items:center;border-radius:50%;margin:0 auto 30px;background:linear-gradient(145deg,#6E35C5,#B339C5);color:#fff;box-shadow:0 0 0 12px rgba(172,135,255,.09),0 18px 70px rgba(130,65,230,.24)}
+.completion h1{margin:10px auto 18px;max-width:none;font-size:clamp(44px,6vw,72px);line-height:1.06}
+.completion-person{color:#E0D0FF;font-size:19px;font-weight:700;overflow-wrap:anywhere;margin:0 0 20px}
+.completion-description{font-size:clamp(17px,2vw,21px);color:#ECE5FF;line-height:1.7;margin:0 auto 14px;max-width:560px}
+.completion-caption{font-size:15px;color:#C9BEE8;line-height:1.65;margin:0 auto 34px}
+.completion-restart{min-height:49px;padding:14px 24px}
+@media(max-width:540px){.completion-symbol{width:78px;height:78px;margin-bottom:27px}.completion-symbol svg{width:36px;height:36px}.completion-restart{width:100%;max-width:290px}}
+
 /* bottom bar */
 .bottom{display:flex;align-items:center;gap:14px;padding:14px 28px calc(14px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--bg);flex-wrap:wrap}
 .bottom .who{flex:1;min-width:0;color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -273,7 +289,7 @@ input:focus,textarea:focus{border-color:var(--accent);outline:none}
 @media (max-width:860px){.rail{display:none}.top{padding:12px 16px}.bottom{padding-inline:16px}main{padding-block:28px}}
 </style>
 
-<div class="app">
+<div class="app" id="presentation-app">
   <header class="top">
     <div class="brand">
       <span class="logo-img toplogo" aria-hidden="true"></span><span class="wm" role="img" aria-label="Blues CMO"><b>Blues</b><span>CMO</span></span>
@@ -536,17 +552,12 @@ input:focus,textarea:focus{border-color:var(--accent);outline:none}
     </section>
 
     <!-- 9 Summary -->
-    <section class="step" data-name="Summary" data-kind="summary" data-note="Thank them. Save the session, then copy the summary into the team's shared notes.">
+    <section class="step" data-name="Summary" data-kind="summary" data-note="Review the responses, then press Done to save this interview.">
       <div class="eyebrow">Thank you</div>
       <h2 id="sum-title">Session summary</h2>
       <div class="sum" id="sum"></div>
-      <div class="actions">
-        <button type="button" class="btn primary" id="save-btn">Save session</button>
-        <button type="button" class="btn" id="copy-btn">Copy summary</button>
-        <button type="button" class="btn" id="new-btn">Start a new session</button>
-        <span class="toast" id="toast" role="status"></span>
-      </div>
-      <textarea id="copy-fallback" aria-label="Summary text" hidden readonly style="margin-top:16px;min-height:220px"></textarea>
+      <p class="summary-finish-note">Ready to finish? Press <strong>Done</strong> at the bottom right to securely save this session.</p>
+      <p id="finish-error" class="finish-error" role="alert" hidden></p>
     </section>
   </main>
 
@@ -556,6 +567,20 @@ input:focus,textarea:focus{border-color:var(--accent);outline:none}
     <button type="button" class="btn primary" id="next">Next</button>
   </footer>
 </div>
+
+<section class="completion" id="complete-screen" hidden aria-labelledby="complete-title">
+  <div class="completion-inner">
+    <div class="completion-symbol" aria-hidden="true">
+      <svg viewBox="0 0 32 32" fill="none" width="42" height="42"><path d="m7 16 6.5 6.5L25 10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <p class="eyebrow">Blues CMO · Founding Member Preview</p>
+    <h1 id="complete-title" tabindex="-1">Thank you!</h1>
+    <p id="complete-person" class="completion-person"></p>
+    <p class="completion-description">Your session has been saved successfully. Your feedback will help shape what Blues CMO builds next.</p>
+    <p class="completion-caption">We appreciate you sharing your time and ideas with us.</p>
+    <button type="button" class="btn primary completion-restart" id="restart-after-complete">Start another session</button>
+  </div>
+</section>
 
 <script>
 (function(){
@@ -810,34 +835,63 @@ function renderSummary(){
   document.getElementById('sum-title').textContent=(S.business||S.owner)?`Thanks${S.owner?', '+S.owner.split(' ')[0]:''}. Here's what we heard.`:'Session summary';
   document.getElementById('sum').innerHTML=lines().map(([a,b])=>`<div class="line"><b>${esc(a)}</b><span>${esc(b)}</span></div>`).join('');
 }
-function summaryText(){return 'Blues CMO · Founding Member session\n'+lines().map(([a,b])=>`${a}: ${b}`).join('\n')}
-const toast=m=>{const t=document.getElementById('toast');t.textContent=m;clearTimeout(toast.t);toast.t=setTimeout(()=>t.textContent='',3500)};
-document.getElementById('copy-btn').onclick=()=>{
-  const txt=summaryText(), fb=document.getElementById('copy-fallback');
-  const fallback=()=>{fb.hidden=false;fb.value=txt;fb.focus();fb.select();toast('Select all and copy the text below')};
-  try{navigator.clipboard.writeText(txt).then(()=>toast('Summary copied'),fallback)}catch(e){fallback()}
-};
-document.getElementById('save-btn').onclick=async()=>{
-  const button=document.getElementById('save-btn');
-  if(!S.owner?.trim()&&!S.business?.trim()){toast('Enter an owner or business name before saving');return;}
-  if(!S.id || !/^[0-9a-f-]{36}$/i.test(S.id)) S.id=crypto.randomUUID();
-  button.disabled=true;button.textContent='Saving…';
+let isFinishing=false;
+function showFinishError(message){
+  const area=document.getElementById('finish-error');
+  area.textContent=message||'';
+  area.hidden=!message;
+}
+async function finishSession(){
+  if(isFinishing)return;
+  if(!String(S.owner||'').trim()&&!String(S.business||'').trim()){
+    showFinishError('Enter an owner or business name on the Welcome step before finishing.');
+    return;
+  }
+  isFinishing=true;
+  showFinishError('');
+  next.disabled=true;
+  next.textContent='Saving…';
   try{
-    const response=await fetch('/api/submissions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:S.id,session:S})});
-    const result=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(result.error||'Unable to save. Please try again.');
+    if(!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(S.id||''))S.id=crypto.randomUUID();
     save();
-    toast('Session saved successfully.');
-  }catch(error){toast(error.message||'Save failed. Try again.');}
-  finally{button.disabled=false;button.textContent='Save session';}
-};
-document.getElementById('new-btn').onclick=()=>{S=blank();save();location.hash='';rebindAll();fi=0;go(0)};
+    const response=await fetch('/api/submissions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id:S.id,session:S})
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.error||'Unable to save this session. Please try again.');
+    // Only show the completion screen after the server confirms the save.
+    const owner=String(S.owner||'').trim();
+    const business=String(S.business||'').trim();
+    document.getElementById('complete-person').textContent=owner&&business
+      ? owner+' · '+business : (owner||business);
+    S=blank();
+    save();
+    document.getElementById('presentation-app').hidden=true;
+    document.getElementById('complete-screen').hidden=false;
+    document.getElementById('complete-title').focus();
+  }catch(error){
+    showFinishError(error.message||'Unable to save this session. Please try again.');
+  }finally{
+    isFinishing=false;
+    next.disabled=false;
+    next.textContent='Done';
+  }
+}
 function rebindAll(){
-  document.querySelectorAll('[data-k]').forEach(el=>{if(!el.classList.contains('chips')) el.value=S[el.dataset.k]??''});
+  document.querySelectorAll('[data-k]').forEach(el=>{if(!el.classList.contains('chips'))el.value=S[el.dataset.k]??''});
   document.getElementById('f-date').value=S.date;
   document.querySelectorAll('.chips[data-k]').forEach(bindChips);
-  reveal.hidden=true;rbtn.hidden=false;document.getElementById('copy-fallback').hidden=true;checkPrices();who();
+  reveal.hidden=true;rbtn.hidden=false;checkPrices();who();
+  showFinishError('');
 }
+document.getElementById('restart-after-complete').onclick=()=>{
+  S=blank();save();fi=0;rebindAll();
+  document.getElementById('complete-screen').hidden=true;
+  document.getElementById('presentation-app').hidden=false;
+  go(0);
+};
 /* nav */
 const back=document.getElementById('back'), next=document.getElementById('next');
 const mcard=document.getElementById('mcard');
@@ -856,24 +910,30 @@ function card(){
 function who(){card();const w=[S.owner,S.business].filter(Boolean).join(' · ');document.getElementById('who').textContent=w?('Session with '+w):'New session'}
 function save(){store.set(KEY,S)}
 function go(i){
+  if(isFinishing)return;
   cur=Math.max(0,Math.min(steps.length-1,i));
   steps.forEach((s,j)=>s.classList.toggle('on',j===cur));
   [...rail.children].forEach((b,j)=>{b.classList.toggle('on',j===cur);b.classList.toggle('done',j<cur)});
   document.getElementById('barfill').style.width=((cur)/(steps.length-1)*100)+'%';
   back.disabled=cur===0;
   next.textContent=cur===steps.length-2?'See summary':(cur===steps.length-1?'Done':'Next');
-  next.disabled=cur===steps.length-1;
+  next.disabled=isFinishing;
   document.getElementById('notes').innerHTML='<b>Say:</b> '+steps[cur].dataset.note;
   if(steps[cur].dataset.kind==='features') renderFeature();
   if(steps[cur].dataset.kind==='roadmap') renderRoadmap();
   if(steps[cur].dataset.kind==='summary') renderSummary();
   document.getElementById('main').scrollTop=0;
 }
-back.onclick=()=>{ if(steps[cur].dataset.kind==='features'&&fi>0){fi--;renderFeature();return} go(cur-1)};
-next.onclick=()=>{ if(steps[cur].dataset.kind==='features'&&fi<FEATURES.length-1){fi++;renderFeature();return} go(cur+1)};
+back.onclick=()=>{ if(isFinishing)return; if(steps[cur].dataset.kind==='features'&&fi>0){fi--;renderFeature();return} go(cur-1)};
+next.onclick=async()=>{
+  if(isFinishing)return;
+  if(steps[cur].dataset.kind==='summary'){await finishSession();return}
+  if(steps[cur].dataset.kind==='features'&&fi<FEATURES.length-1){fi++;renderFeature();return}
+  go(cur+1)
+};
 document.addEventListener('keydown',e=>{
   if(/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
-  if(e.key==='ArrowRight') next.click();
+  if(e.key==='ArrowRight'&&steps[cur].dataset.kind!=='summary') next.click();
   if(e.key==='ArrowLeft') back.click();
 });
 checkPrices();who();go(0);
