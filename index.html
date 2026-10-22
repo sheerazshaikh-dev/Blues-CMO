@@ -263,12 +263,6 @@ input:focus,textarea:focus{border-color:var(--accent);outline:none}
 .btn.primary{background:var(--grad);border:none;color:#fff}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .toast{color:var(--good);font-weight:600;font-size:15px;align-self:center}
-.saved{margin-top:40px}
-.saved table{width:100%;border-collapse:collapse;font-size:15px}
-.saved th{text-align:left;color:var(--dim);font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line)}
-.saved td{padding:10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
-.scroll{overflow-x:auto}
-
 /* bottom bar */
 .bottom{display:flex;align-items:center;gap:14px;padding:14px 28px calc(14px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--bg);flex-wrap:wrap}
 .bottom .who{flex:1;min-width:0;color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -552,14 +546,6 @@ input:focus,textarea:focus{border-color:var(--accent);outline:none}
         <span class="toast" id="toast" role="status"></span>
       </div>
       <textarea id="copy-fallback" aria-label="Summary text" hidden readonly style="margin-top:16px;min-height:220px"></textarea>
-      <div class="saved">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-          <h3 style="margin:0;font-size:20px">Saved sessions on this computer</h3>
-          <button type="button" class="btn" id="csv-btn">Download all as CSV</button>
-        </div>
-        <div class="scroll" style="margin-top:12px"><table><thead><tr><th>Date</th><th>Owner</th><th>Business</th><th>Decision</th><th>Easy yes</th><th>Too expensive</th><th>Reaction</th></tr></thead><tbody id="saved-rows"></tbody></table></div>
-        <p class="hint" id="saved-empty" style="color:var(--muted)">No saved sessions yet. Sessions are kept in this browser, so download the CSV after each call to share with the team.</p>
-      </div>
     </section>
   </main>
 
@@ -712,7 +698,7 @@ const ROADMAP=[
 const ALL=[...FEATURES,...ROADMAP];
 
 const steps=[...document.querySelectorAll('.step')];
-const KEY='odin-founding-draft', LIST='odin-founding-sessions';
+const KEY='odin-founding-draft';
 const store={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const today=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 function blank(){return {date:today,ratings:{},trade:[],channels:[],software:[],topFeatures:[]}}
@@ -822,7 +808,6 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','
 function renderSummary(){
   document.getElementById('sum-title').textContent=(S.business||S.owner)?`Thanks${S.owner?', '+S.owner.split(' ')[0]:''}. Here's what we heard.`:'Session summary';
   document.getElementById('sum').innerHTML=lines().map(([a,b])=>`<div class="line"><b>${esc(a)}</b><span>${esc(b)}</span></div>`).join('');
-  renderSaved();
 }
 function summaryText(){return 'Blues CMO · Founding Member session\n'+lines().map(([a,b])=>`${a}: ${b}`).join('\n')}
 const toast=m=>{const t=document.getElementById('toast');t.textContent=m;clearTimeout(toast.t);toast.t=setTimeout(()=>t.textContent='',3500)};
@@ -840,10 +825,8 @@ document.getElementById('save-btn').onclick=async()=>{
     const response=await fetch('/api/submissions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:S.id,session:S})});
     const result=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(result.error||'Unable to save. Please try again.');
-    const all=store.get(LIST)||[];
-    const i=all.findIndex(x=>x.id===S.id);const copy=JSON.parse(JSON.stringify(S));
-    if(i>=0)all[i]=copy;else all.push(copy);
-    store.set(LIST,all);save();renderSaved();toast('Saved to Blues CMO. Visible in /admin');
+    save();
+    toast('Session saved successfully.');
   }catch(error){toast(error.message||'Save failed. Try again.');}
   finally{button.disabled=false;button.textContent='Save session';}
 };
@@ -854,22 +837,6 @@ function rebindAll(){
   document.querySelectorAll('.chips[data-k]').forEach(bindChips);
   reveal.hidden=true;rbtn.hidden=false;document.getElementById('copy-fallback').hidden=true;checkPrices();who();
 }
-function renderSaved(){
-  const all=store.get(LIST)||[];
-  document.getElementById('saved-empty').hidden=all.length>0;
-  document.getElementById('saved-rows').innerHTML=all.map(s=>`<tr><td>${esc(s.date||'')}</td><td>${esc(s.owner||'—')}</td><td>${esc(s.business||'—')}</td><td>${esc(s.decision||'—')}</td><td>${s.pBargain!=null?'$'+s.pBargain:'—'}</td><td>${s.pTooExpensive!=null?'$'+s.pTooExpensive:'—'}</td><td>${esc(s.priceReaction||'—')}</td></tr>`).join('');
-  document.getElementById('csv-btn').disabled=!all.length;
-}
-document.getElementById('csv-btn').onclick=async()=>{
-  const all=store.get(LIST)||[]; if(!all.length) return;
-  const keep=S; const rows=[];
-  all.forEach((s,i)=>{S=s;const l=lines();if(i===0) rows.push(l.map(x=>x[0]));rows.push(l.map(x=>x[1]))});
-  S=keep;
-  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
-  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
-  const a=document.createElement('a');a.href=url;a.download='blues-cmo-local-sessions.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('CSV downloaded');
-};
-
 /* nav */
 const back=document.getElementById('back'), next=document.getElementById('next');
 const mcard=document.getElementById('mcard');
